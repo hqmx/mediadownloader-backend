@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Downloader - YouTube & SNS 다운로더</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎬 Media Downloader</h1>
+            <p>YouTube 및 소셜 미디어 콘텐츠 다운로더</p>
+        </header>
+
+        <main>
+            <div class="url-section">
+                <div class="input-group">
+                    <input 
+                        type="text" 
+                        id="urlInput" 
+                        placeholder="YouTube URL을 입력하세요 (예: https://www.youtube.com/watch?v=...)"
+                        autocomplete="off"
+                    >
+                    <button id="analyzeBtn" class="btn btn-primary">분석</button>
+                </div>
+                <div id="urlError" class="error-message"></div>
+            </div>
+
+            <div id="videoInfo" class="video-info" style="display: none;">
+                <div class="video-preview">
+                    <img id="videoThumbnail" src="" alt="Video thumbnail">
+                    <div class="video-details">
+                        <h3 id="videoTitle"></h3>
+                        <p id="videoDuration"></p>
+                        <p id="videoPlatform"></p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="downloadOptions" class="download-options" style="display: none;">
+                <h3>다운로드 옵션</h3>
+                
+                <div class="option-group">
+                    <label>
+                        <input type="radio" name="downloadType" value="video" checked>
+                        🎥 비디오 다운로드
+                    </label>
+                    <label>
+                        <input type="radio" name="downloadType" value="audio">
+                        🎵 오디오만 다운로드
+                    </label>
+                </div>
+
+                <div class="format-section">
+                    <div id="videoFormats" class="format-group">
+                        <label for="videoFormat">비디오 포맷:</label>
+                        <select id="videoFormat">
+                            <option value="mp4">MP4</option>
+                            <option value="webm">WebM</option>
+                            <option value="mkv">MKV</option>
+                        </select>
+                        
+                        <label for="videoQuality">화질:</label>
+                        <select id="videoQuality">
+                            <option value="360p">360p</option>
+                            <option value="480p">480p</option>
+                            <option value="720p" selected>720p</option>
+                            <option value="1080p">1080p</option>
+                            <option value="1440p">1440p</option>
+                            <option value="2160p">2160p</option>
+                        </select>
+                    </div>
+
+                    <div id="audioFormats" class="format-group" style="display: none;">
+                        <label for="audioFormat">오디오 포맷:</label>
+                        <select id="audioFormat">
+                            <option value="mp3" selected>MP3</option>
+                            <option value="m4a">M4A</option>
+                            <option value="opus">Opus</option>
+                        </select>
+                        
+                        <label for="audioQuality">품질:</label>
+                        <select id="audioQuality">
+                            <option value="128kbps">128 kbps</option>
+                            <option value="192kbps" selected>192 kbps</option>
+                            <option value="320kbps">320 kbps</option>
+                        </select>
+                    </div>
+                </div>
+
+                <button id="downloadBtn" class="btn btn-success">다운로드 시작</button>
+            </div>
+
+            <div id="downloadProgress" class="progress-section" style="display: none;">
+                <h3>다운로드 진행상황</h3>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <div class="progress-info">
+                    <span id="progressText">준비 중...</span>
+                    <span id="progressPercent">0%</span>
+                </div>
+            </div>
+
+            <div id="downloadComplete" class="completion-section" style="display: none;">
+                <div class="success-message">
+                    <h3>✅ 다운로드 완료!</h3>
+                    <p>파일이 성공적으로 다운로드되었습니다.</p>
+                    <button id="downloadAgainBtn" class="btn btn-secondary">다시 다운로드</button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <div class="supported-platforms">
+                <h4>지원 플랫폼</h4>
+                <div class="platform-icons">
+                    <span class="platform">📺 YouTube</span>
+                    <span class="platform">🎵 YouTube Music</span>
+                </div>
+            </div>
+            
+            <div class="disclaimer">
+                <p><small>⚠️ 저작권이 보호되는 콘텐츠는 개인적인 용도로만 사용하세요.</small></p>
+            </div>
+        </footer>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner">
+            <div class="spinner"></div>
+            <p>처리 중...</p>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
