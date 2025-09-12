@@ -1,10 +1,12 @@
 const { spawn } = require('child_process');
 const { promisify } = require('util');
 const urlValidator = require('./urlValidator');
+const SmartProxyManager = require('./smartProxyManager');
 
 class VideoInfoExtractor {
   constructor() {
-    this.ytdlpPath = 'yt-dlp'; // yt-dlp 바이너리 경로
+    this.ytdlpPath = process.env.YTDLP_PATH || 'yt-dlp';
+    this.proxyManager = new SmartProxyManager();
   }
 
   /**
@@ -42,22 +44,18 @@ class VideoInfoExtractor {
   }
 
   /**
-   * URL에서 비디오 정보를 추출
+   * URL에서 비디오 정보를 추출 (스텔스 모드 포함)
    * @param {string} url 
+   * @param {number} retryCount 
    * @returns {Promise<Object>}
    */
-  async extractVideoInfo(url) {
+  async extractVideoInfo(url, retryCount = 0) {
     if (!urlValidator.isValidUrl(url)) {
       throw new Error('유효하지 않은 URL입니다');
     }
 
     try {
-      const args = [
-        '--dump-json',
-        '--no-playlist',
-        url
-      ];
-
+      const args = this.buildStealthArgs(url);
       const jsonOutput = await this.executeYtDlp(args);
       const videoInfo = JSON.parse(jsonOutput);
 
@@ -70,6 +68,13 @@ class VideoInfoExtractor {
         formats: this.parseFormats(videoInfo.formats || [])
       };
     } catch (error) {
+      if (retryCount < 3) {
+        console.log(`비디오 추출 시도 ${retryCount + 1} 실패, 프록시 로테이션 중...`);
+        this.proxyManager.rotateSession();
+        await this.humanDelay();
+        return this.extractVideoInfo(url, retryCount + 1);
+      }
+      
       throw new Error(`비디오 정보 추출 실패: ${error.message}`);
     }
   }
@@ -85,12 +90,6 @@ class VideoInfoExtractor {
     }
 
     try {
-      const args = [
-        '--list-formats',
-        '--no-playlist',
-        url
-      ];
-
       const videoInfo = await this.extractVideoInfo(url);
       const formats = videoInfo.formats;
 
@@ -141,6 +140,74 @@ class VideoInfoExtractor {
       vbr: format.vbr, // video bitrate
       fps: format.fps
     }));
+  }
+
+  /**
+   * 스텔스 모드 yt-dlp 인수 구성
+   * @param {string} url 
+   * @returns {Array}
+   */
+  buildStealthArgs(url) {
+    const args = [];
+    
+    // SmartProxy 설정
+    const proxy = this.proxyManager.getProxy();
+    if (proxy) {
+      args.push('--proxy', proxy);
+    }
+    
+    // 완벽한 스텔스 헤더 세트
+    args.push(
+      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+      '--add-header', 'Accept-Language:en-US,en;q=0.9',
+      '--add-header', 'Accept-Encoding:gzip, deflate, br',
+      '--add-header', 'DNT:1',
+      '--add-header', 'Connection:keep-alive',
+      '--add-header', 'Upgrade-Insecure-Requests:1',
+      '--add-header', 'Sec-Fetch-Dest:document',
+      '--add-header', 'Sec-Fetch-Mode:navigate',
+      '--add-header', 'Sec-Fetch-Site:none',
+      '--add-header', 'Sec-Fetch-User:?1',
+      '--add-header', 'Cache-Control:max-age=0'
+    );
+    
+    // 인간적인 행동 패턴
+    const randomRate = 100 + Math.random() * 100; // 100-200K 랜덤
+    const randomSleep = 2 + Math.random() * 3;    // 2-5초 랜덤
+    
+    args.push(
+      '--limit-rate', `${Math.floor(randomRate)}K`,
+      '--sleep-interval', `${Math.floor(randomSleep)}`,
+      '--max-sleep-interval', '10'
+    );
+    
+    // YouTube 우회 옵션
+    args.push(
+      '--no-check-certificate',
+      '--prefer-insecure',
+      '--no-call-home',
+      '--quiet',
+      '--no-warnings'
+    );
+    
+    // 출력 옵션
+    args.push(
+      '--dump-json',
+      '--no-playlist',
+      url
+    );
+    
+    return args;
+  }
+
+  /**
+   * 인간적인 지연 시간
+   * @returns {Promise}
+   */
+  async humanDelay() {
+    const delay = 2000 + Math.random() * 4000; // 2-6초 랜덤
+    await new Promise(resolve => setTimeout(resolve, delay));
   }
 }
 

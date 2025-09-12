@@ -1,28 +1,53 @@
-const videoInfoExtractor = require('../services/videoInfoExtractor');
+const SmartDownloader = require('../services/smartDownloader');
 const downloadManager = require('../services/downloadManager');
 const urlValidator = require('../services/urlValidator');
 
 class DownloadController {
+  constructor() {
+    this.smartDownloader = new SmartDownloader();
+  }
+
   /**
-   * 비디오 정보 추출
+   * 비디오 정보 추출 (스마트 다운로더 사용)
    */
   async getVideoInfo(req, res) {
     try {
       const { url } = req.body;
 
       if (!url) {
-        return res.status(400).json({ error: 'URL is required' });
+        return res.status(400).json({ 
+          success: false,
+          error: 'URL is required' 
+        });
       }
 
       if (!urlValidator.isValidUrl(url)) {
-        return res.status(400).json({ error: 'Invalid URL provided' });
+        return res.status(400).json({ 
+          success: false,
+          error: 'Invalid URL provided' 
+        });
       }
 
-      const videoInfo = await videoInfoExtractor.extractVideoInfo(url);
-      res.json(videoInfo);
+      console.log('=== 비디오 정보 추출 시작 ===');
+      console.log('요청 URL:', url);
+      
+      const videoInfo = await this.smartDownloader.extractVideoInfo(url);
+      
+      res.json({
+        success: true,
+        data: videoInfo,
+        method: 'smart-downloader',
+        timestamp: new Date().toISOString()
+      });
     } catch (error) {
-      console.error('Error extracting video info:', error);
-      res.status(500).json({ error: error.message });
+      console.error('=== 비디오 정보 추출 실패 ===');
+      console.error('에러:', error.message);
+      
+      res.status(500).json({ 
+        success: false,
+        error: error.message,
+        suggestion: '잠시 후 다시 시도하거나 다른 비디오 URL을 사용해보세요.'
+      });
     }
   }
 
@@ -170,14 +195,33 @@ class DownloadController {
   }
 
   /**
-   * 헬스 체크
+   * 헬스 체크 (SmartDownloader 상태 포함)
    */
-  healthCheck(req, res) {
-    res.json({ 
-      status: 'ok', 
-      timestamp: new Date().toISOString(),
-      uptime: process.uptime()
-    });
+  async healthCheck(req, res) {
+    try {
+      const healthInfo = await this.smartDownloader.healthCheck();
+      
+      res.json({
+        status: 'ok',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        services: {
+          ...healthInfo,
+          downloadManager: true
+        },
+        environment: {
+          nodeVersion: process.version,
+          platform: process.platform,
+          arch: process.arch
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        timestamp: new Date().toISOString(),
+        error: error.message
+      });
+    }
   }
 
   /**
