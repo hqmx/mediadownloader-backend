@@ -160,15 +160,16 @@ await page.waitForTimeout(2000 + Math.random() * 3000);
 
 ---
 
-## 🎯 현재 상황 (2025-09-11 18:30)
+## 🎯 현재 상황 (2025-09-13 09:30)
 
 ### ✅ 완료된 구현:
-1. **SmartProxy 매니저**: 주거용 프록시 연동 완료
+1. **SmartProxy 매니저**: 주거용 프록시 연동 완료 (HTTP만 작동)
 2. **스텔스 videoInfoExtractor**: yt-dlp + 완벽한 헤더 위장
-3. **Playwright 스텔스 브라우저**: 인간 행동 시뮬레이션
-4. **통합 SmartDownloader**: 자동 폴백 시스템
+3. **Playwright 스텔스 브라우저**: 인간 행동 시뮬레이션 (SSL 문제)
+4. **통합 SmartDownloader**: 자동 폴백 시스템 (부분 작동)
 5. **환경 설정**: .env 템플릿, 설치 스크립트
-6. **문서화**: README.md 업데이트, 설치 가이드
+6. **문서화**: README.md, CLAUDE.md, planb.md 업데이트
+7. **VideoInfoExtractor 수정**: 모듈 exports 문제 해결
 
 ### 📋 준비된 파일들:
 - `src/services/smartProxyManager.js` ✅
@@ -224,28 +225,91 @@ curl -X POST https://mediadownloader.hqmx.net/api/video-info \
 
 ---
 
+### 🔴 6단계: SmartProxy SSL 연결 문제 발생 (2025-09-13)
+**기간**: 문제 해결 단계
+**문제**: SmartProxy를 통한 HTTPS 연결 차단
+
+#### 🔴 발생한 문제:
+```bash
+# SmartProxy HTTP 연결 테스트
+curl --proxy http://smart-hqmxsmartproxy:Straight8@proxy.smartproxy.net:3120 http://httpbin.org/ip
+# 결과: ✅ 성공 - 실제 IP 변경 확인
+
+# SmartProxy HTTPS 연결 테스트  
+curl --proxy http://smart-hqmxsmartproxy:Straight8@proxy.smartproxy.net:3120 https://www.youtube.com
+# 결과: ❌ SSL_ERROR_SYSCALL
+```
+
+#### 🔍 원인 분석:
+1. **YouTube SSL 차단**: 프록시 IP 범위 탐지 → SSL 연결 거부
+2. **TLS 지문 불일치**: JA3 TLS 지문과 프록시 IP의 불일치
+3. **데이터센터 IP 인식**: YouTube가 데이터센터 IP 대역 필터링
+
+#### 📊 현재 작동 상태:
+- ✅ **웹 인터페이스**: 정상 접속 가능
+- ✅ **영상 다운로드**: 저화질로 성공적으로 다운로드
+- ❌ **영상 정보 분석**: SSL 문제로 분석 실패
+- ⚠️ **SmartDownloader**: 1방법(yt-dlp) 실패, 2방법(브라우저) SSL 문제
+
+#### 🛠️ 해결 방안 연구:
+
+**방법 1: 쿠키 기반 접근 (추천)**
+```javascript
+// 1. 프록시 없이 YouTube 접속으로 쿠키 획득
+// 2. 획득한 쿠키를 yt-dlp에 전달
+// 3. 프록시 사용 불필요
+--cookies-from-browser chrome
+// 또는
+--cookies cookies.txt
+```
+
+**방법 2: SSL/TLS Passthrough**
+```bash
+# SmartProxy에서 HTTPS CONNECT 터널링 설정
+# TLS 핸드셰이크를 클라이언트가 직접 처리
+# 프록시는 단순 터널 역할만 수행
+```
+
+**방법 3: 대체 프록시 서비스**
+```bash
+# Residential Proxy with SSL support
+# 또는 HTTP-only 프록시 사용
+```
+
+---
+
 ### 📊 예상 결과 및 성공 지표
 
 #### 🎯 기대 성과:
-1. **YouTube 봇 감지 우회**: 95% 이상 성공률
+1. **YouTube 봇 감지 우회**: 95% 이상 성공률 (현재 SSL 문제로 중단)
 2. **다중 폴백 시스템**: yt-dlp 실패 시 브라우저 모드 자동 전환
 3. **안정적 서비스**: 지속 가능한 YouTube 다운로드
 
-#### 📈 성공 지표:
-- ✅ 비디오 정보 추출 성공 (제목, 썸네일, 포맷)
-- ✅ 다운로드 실행 성공 (선택한 화질/포맷)
-- ✅ 에러 로그 없음
-- ✅ 헬스체크 통과
+#### 📈 성공 지표 (현재 상태):
+- ❌ 비디오 정보 추출: SSL 문제로 실패
+- ✅ 다운로드 실행: 저화질로 성공
+- ⚠️ 에러 로그: SSL 관련 에러 발생
+- ✅ 헬스체크 통과: 웹 서비스 정상
 
 ---
 
 ### 🔧 문제 해결 예상 시나리오
 
-#### 시나리오 1: SmartProxy 연결 실패
+#### 시나리오 1: SmartProxy SSL 연결 실패 (NEW)
+**증상**: `SSL_ERROR_SYSCALL` 또는 `SSL connection failed`
+**해결**: 
+1. 쿠키 기반 접근 방법 구현 대기
+2. SSL passthrough 설정 시도
+3. 디버깅: curl 테스트로 연결 상태 확인
+   ```bash
+   curl --proxy http://user:pass@proxy.smartproxy.net:3120 http://httpbin.org/ip
+   ```
+
+#### 시나리오 2: SmartProxy 연결 실패
 **증상**: `SmartProxy URL not available` 에러
 **해결**: .env 파일의 SMARTPROXY_USERNAME, SMARTPROXY_PASSWORD 확인
 
-#### 시나리오 2: Playwright 설치 실패
+#### 시나리오 3: Playwright 설치 실패
 **증상**: `chromium.launch() failed` 에러
 **해결**: 
 ```bash
@@ -253,7 +317,7 @@ sudo apt-get install -y libnss3 libxss1 libasound2
 npx playwright install-deps chromium
 ```
 
-#### 시나리오 3: 여전히 봇 감지 발생
+#### 시나리오 4: 여전히 봇 감지 발생
 **증상**: YouTube 봇 에러 지속
 **해결**: 
 1. SmartProxy 세션 로테이션 확인
@@ -262,10 +326,38 @@ npx playwright install-deps chromium
 
 ---
 
-## 💡 추가 개선 아이디어 (미래)
+## 🚀 다음 단계 자세한 플랜
+
+### 🔥 즉시 실행 (우선순위 1)
+
+#### 1. 쿠키 기반 접근 방법 구현
+```bash
+# 1단계: Playwright로 YouTube 쿠키 추출 기능 추가
+# 2단계: yt-dlp에 --cookies 옵션 적용
+# 3단계: 프록시 없이 직접 연결 테스트
+```
+
+#### 2. SSL Passthrough 설정 시도
+```bash
+# SmartProxy 설정에서 CONNECT 터널링 활성화
+# 또는 대체 프록시 서비스 연구
+```
+
+#### 3. 디버깅 및 모니터링 강화
+```bash
+# SSL 연결 로그 상세화
+# SmartProxy 연결 상태 실시간 모니터링
+# 에러 패턴 분석 도구 추가
+```
+
+---
+
+### 💡 추가 개선 아이디어 (미래)
 
 ### 단기 (1주일 내):
-1. **모니터링 시스템**: 성공률 통계, 에러 알림
+1. **SSL 문제 완전 해결**: 쿠키 기반 접근 완성
+2. **모니터링 시스템**: 성공률 통계, SSL 에러 알림
+3. **연결 안정성 개선**: 재연결 로직 강화
 2. **캐싱 시스템**: 비디오 정보 캐시로 응답 속도 향상
 3. **다중 프록시**: 여러 프록시 서비스 지원
 
@@ -299,6 +391,12 @@ npx playwright install-deps chromium
 
 ---
 
-**마지막 업데이트**: 2025-09-11 18:30 KST  
-**현재 단계**: 스텔스 시스템 구현 완료, EC2 배포 준비 중  
-**다음 액션**: GitHub 푸시 → EC2 배포 → SmartProxy 설정 → 테스트
+**마지막 업데이트**: 2025-09-13 09:30 KST  
+**현재 단계**: SmartProxy SSL 연결 문제 분석 완료, 해결 방안 연구 중  
+**다음 액션**: 쿠키 기반 접근 방법 구현 → SSL Passthrough 설정 → 대안 프록시 연구
+
+**현재 작동 상태 요약**:
+- ✅ 웹 UI: 접속 가능
+- ✅ 다운로드: 저화질 영상 다운로드 성공
+- ❌ 정보 분석: SSL 문제로 실패
+- ⚠️ SmartProxy: HTTP 작동, HTTPS 차단

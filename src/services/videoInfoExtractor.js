@@ -211,4 +211,4 @@ class VideoInfoExtractor {
   }
 }
 
-module.exports = new VideoInfoExtractor();
+module.exports = VideoInfoExtractor;

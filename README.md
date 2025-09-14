@@ -318,6 +318,18 @@ ERROR: Sign in to confirm you're not a bot
 3. 애플리케이션 재시작: pm2 restart mediadownloader
 ```
 
+#### SmartProxy SSL 연결 실패 (NEW)
+```bash
+# 증상
+SSL_ERROR_SYSCALL 또는 SSL connection failed
+
+# 해결  
+1. 쿠키 기반 접근 구현 대기
+2. SSL passthrough 설정 시도
+3. 디버깅: curl 테스트로 연결 상태 확인
+   curl --proxy http://user:pass@proxy.smartproxy.net:3120 http://httpbin.org/ip
+```
+
 #### Playwright 브라우저 오류
 ```bash
 # 증상  
@@ -454,16 +466,24 @@ netstat -tuln | grep :3000
 
 ## 🌟 프로젝트 상태
 
-**현재 버전**: v2.0.0 (스텔스 시스템)  
-**개발 상태**: 활발한 개발 중  
-**안정성**: 프로덕션 준비 완료  
-**마지막 업데이트**: 2025-09-11
+**현재 버전**: v2.0.1 (SSL 문제 해결 중)  
+**개발 상태**: SSL 연결 문제 분석 및 해결 작업  
+**안정성**: 부분적 작동 (다운로드 가능, 분석 실패)  
+**마지막 업데이트**: 2025-09-13
 
 ### 🎯 로드맵
 - ✅ **v1.0**: TDD 기반 YouTube 다운로더
 - ✅ **v2.0**: 스텔스 시스템 (봇 감지 우회)
-- 🔄 **v2.1**: 성능 최적화 및 모니터링 (진행중)
+- 🔄 **v2.0.1**: SmartProxy SSL 문제 해결 (진행중)
+- 📋 **v2.1**: 쿠키 기반 접근 구현 (계획중)
 - 📋 **v3.0**: 다중 플랫폼 지원 (계획중)
+
+### 📊 현재 기능 상태
+- ✅ **영상 다운로드**: 정상 작동 (저화질)
+- ❌ **영상 정보 분석**: SSL 문제로 실패
+- ✅ **웹 인터페이스**: 정상 작동
+- ⚠️ **SmartProxy 연결**: HTTP만 작동, HTTPS 차단
+- ✅ **Plan B 시스템**: 구현 완료, SSL 문제로 테스트 불가
 
 ---
 
@@ -474,4 +494,46 @@ netstat -tuln | grep :3000
 
 ---
 
-**마지막 업데이트**: 2025-09-11 18:45 KST
+## 🚨 현재 이슈 및 해결 방안 (2025-09-13)
+
+### ⚠️ SmartProxy SSL 연결 문제
+**상황**: SmartProxy를 통한 YouTube 접속 시 SSL 차단 발생
+
+#### 테스트 결과:
+```bash
+# ✅ 일반 HTTP 요청 성공
+curl --proxy http://smart-hqmxsmartproxy:Straight8@proxy.smartproxy.net:3120 http://httpbin.org/ip
+
+# ❌ YouTube HTTPS 실패  
+curl --proxy http://smart-hqmxsmartproxy:Straight8@proxy.smartproxy.net:3120 https://www.youtube.com
+# 결과: SSL_ERROR_SYSCALL
+```
+
+#### 원인 분석:
+- YouTube가 프록시 IP 범위를 식별하여 SSL 연결 차단
+- TLS 지문(JA3) 불일치 감지
+- 데이터센터 IP 대역 필터링
+
+#### 🔧 해결 방안:
+
+**방법 1: 쿠키 기반 접근 (권장)**
+```bash
+# 1. 프록시 없이 YouTube 접속 → 쿠키 획득
+# 2. 획득한 쿠키로 yt-dlp 실행
+# 3. 프록시 불필요
+```
+
+**방법 2: SSL Passthrough 설정**
+```bash
+# SmartProxy에서 HTTPS CONNECT 터널링 활성화
+# TLS 핸드셰이크를 클라이언트가 직접 처리
+```
+
+#### 현재 작동 상태:
+- ✅ **영상 다운로드**: 저화질로 성공적으로 다운로드됨
+- ⚠️ **영상 분석**: SSL 문제로 정보 추출 실패
+- ✅ **VideoInfoExtractor**: 모듈 exports 수정 완료
+
+---
+
+**마지막 업데이트**: 2025-09-13 09:30 KST
