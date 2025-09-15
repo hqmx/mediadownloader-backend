@@ -20,10 +20,9 @@ class StealthBrowser {
   async extractVideoInfo(url) {
     console.log('🎭 브라우저 시작...');
 
-    const proxyUrl = this.proxyManager.getProxy();
-    console.log('SmartProxy:', proxyUrl ? 'enabled' : 'disabled');
-
-    const browser = await this.launchStealthBrowser(proxyUrl);
+    // 쿠키 기반 접근으로 SmartProxy 우회 (다운로드와 동일한 방식)
+    console.log('🍪 쿠키 기반 접근 - 프록시 없이 빠른 속도');
+    const browser = await this.launchStealthBrowser(null);
     const context = await this.createStealthContext(browser);
 
     try {
