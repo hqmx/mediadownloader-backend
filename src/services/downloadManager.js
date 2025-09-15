@@ -407,12 +407,21 @@ class DownloadManager {
       let netscapeContent = '# Netscape HTTP Cookie File\n';
 
       cookies.forEach(cookie => {
+        // expires 값 검증 및 수정
+        let expires = '0'; // 기본값: session cookie
+        if (cookie.expires && cookie.expires > 0) {
+          expires = Math.floor(cookie.expires).toString();
+        } else if (cookie.expires === -1) {
+          // Session cookie의 경우 현재 시간 + 1년으로 설정
+          expires = Math.floor(Date.now() / 1000 + 365 * 24 * 3600).toString();
+        }
+
         const line = [
           cookie.domain || '.youtube.com',
           cookie.domain?.startsWith('.') ? 'TRUE' : 'FALSE',
           cookie.path || '/',
           cookie.secure ? 'TRUE' : 'FALSE',
-          cookie.expires ? Math.floor(cookie.expires) : '0',
+          expires,
           cookie.name,
           cookie.value
         ].join('\t');
