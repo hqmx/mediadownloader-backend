@@ -86,10 +86,30 @@ class DownloadController {
         });
       }
 
-      // 브라우저 직접 다운로드 방식 사용
-      console.log('🎬 브라우저 직접 다운로드 시작');
+      // 실용적 해결책: 매번 새 쿠키 생성 + 기본 다운로드
+      console.log('🎬 1단계: 매번 새로운 쿠키 생성');
       const SmartDownloader = require('../services/smartDownloader');
-      const result = await SmartDownloader.downloadVideo(url, downloadOptions);
+
+      // 기존 쿠키 삭제
+      const fs = require('fs');
+      try {
+        if (fs.existsSync('/tmp/youtube-cookies.json')) {
+          fs.unlinkSync('/tmp/youtube-cookies.json');
+        }
+        if (fs.existsSync('/tmp/youtube-cookies.txt')) {
+          fs.unlinkSync('/tmp/youtube-cookies.txt');
+        }
+        console.log('🗑️ 기존 쿠키 삭제 완료');
+      } catch (error) {
+        console.log('⚠️ 쿠키 삭제 실패 (무시):', error.message);
+      }
+
+      // 새 쿠키 생성
+      console.log('🍪 새 쿠키 생성 중...');
+      await SmartDownloader.extractVideoInfo(url);
+
+      console.log('🎬 2단계: 새 쿠키로 즉시 다운로드');
+      const result = await downloadManager.downloadVideo(downloadOptions);
       
       res.json({
         success: true,
