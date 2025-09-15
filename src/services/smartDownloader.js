@@ -77,7 +77,7 @@ class SmartDownloader {
 
         // 브라우저 스텔스 실패 시 세션 리셋
         if (method.name === 'browser-stealth') {
-          this.masterStealth.resetSession();
+          this.stealthBrowser.resetSession();
         }
 
         // 재시도 전 대기
