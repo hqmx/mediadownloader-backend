@@ -183,4 +183,4 @@ class SmartDownloader {
   }
 }
 
-module.exports = SmartDownloader;
+module.exports = new SmartDownloader();
