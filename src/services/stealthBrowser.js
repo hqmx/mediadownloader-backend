@@ -34,7 +34,7 @@ class StealthBrowser {
       console.log('🎯 비디오 페이지로 직접 이동...');
       await page.goto(url, {
         waitUntil: 'domcontentloaded',
-        timeout: 30000
+        timeout: 60000
       });
 
       // 2. 짧은 대기 후 정보 추출
