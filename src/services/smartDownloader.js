@@ -54,22 +54,38 @@ class SmartDownloader {
         this.attemptCount++;
       } catch (error) {
         this.attemptCount++;
-        
+
         const errorInfo = {
           method: method.name,
           error: error.message,
           timestamp: new Date().toISOString(),
           attemptCount: this.attemptCount
         };
-        
+
         errors.push(errorInfo);
         console.error(`❌ ${method.name} 실패 (시도 ${this.attemptCount}):`, error.message);
-        
+
+        // 프록시 터널링 오류 시 즉시 브라우저 모드 시도
+        if (method.name === 'yt-dlp-stealth' &&
+            (error.message.includes('Tunnel connection failed') || error.message.includes('ProxyError'))) {
+          console.log('🚀 프록시 오류 감지, 즉시 브라우저 스텔스 모드로 전환...');
+
+          try {
+            const browserResult = await this.tryBrowserStealth(url);
+            if (browserResult && browserResult.videoId) {
+              console.log('✅ 브라우저 모드 긴급 전환 성공!');
+              return browserResult;
+            }
+          } catch (browserError) {
+            console.error('브라우저 모드 긴급 전환도 실패:', browserError.message);
+          }
+        }
+
         // 브라우저 스텔스 실패 시 세션 리셋
         if (method.name === 'browser-stealth') {
           this.masterStealth.resetSession();
         }
-        
+
         // 재시도 전 대기
         if (method !== this.methods[this.methods.length - 1]) {
           await this.randomDelay();

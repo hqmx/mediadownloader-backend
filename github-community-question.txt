@@ -1,0 +1,27 @@
+**Project**: YouTube downloader (Node.js + yt-dlp)
+**Issue**: YouTube HTTPS connections via SmartProxy fail with SSL_ERROR_SYSCALL after EC2 deployment
+
+**Progress**:
+- ✅ Local environment: Works perfectly
+- ✅ EC2 + HTTP proxy: Connection successful (httpbin.org test)
+- ❌ EC2 + HTTPS proxy: YouTube blocks connection (SSL handshake failure)
+
+**Current Status**:
+- Video download: Works (low quality, legacy system)
+- Video analysis: Fails due to SSL issues (yt-dlp + proxy)
+
+**Root Cause**: YouTube detects proxy IP range + TLS fingerprint mismatch and blocks SSL connections
+
+**Question**: When YouTube blocks HTTPS connections even through residential proxies, what solutions have worked for you? Any experience with SSL passthrough or TLS fingerprint spoofing?
+
+**Technical Details**:
+```bash
+# Works
+curl --proxy http://user:pass@proxy.smartproxy.net:3120 http://httpbin.org/ip
+
+# Fails
+curl --proxy http://user:pass@proxy.smartproxy.net:3120 https://www.youtube.com
+# Error: SSL_ERROR_SYSCALL
+```
+
+Looking for sustainable solutions for production use rather than cookie-based workarounds.

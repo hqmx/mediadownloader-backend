@@ -56,6 +56,8 @@ class VideoInfoExtractor {
 
     try {
       const args = this.buildStealthArgs(url);
+      console.log(`🔧 yt-dlp 인수: ${args.join(' ')}`);
+
       const jsonOutput = await this.executeYtDlp(args);
       const videoInfo = JSON.parse(jsonOutput);
 
@@ -68,13 +70,40 @@ class VideoInfoExtractor {
         formats: this.parseFormats(videoInfo.formats || [])
       };
     } catch (error) {
+      console.error(`비디오 추출 실패 (시도 ${retryCount + 1}):`, error.message);
+
       if (retryCount < 3) {
-        console.log(`비디오 추출 시도 ${retryCount + 1} 실패, 프록시 로테이션 중...`);
-        this.proxyManager.rotateSession();
-        await this.humanDelay();
-        return this.extractVideoInfo(url, retryCount + 1);
+        if (error.message.includes('Tunnel connection failed') || error.message.includes('ProxyError')) {
+          console.log('🔄 프록시 터널링 오류 감지, 엔드포인트 전환 시도...');
+
+          // 다른 엔드포인트로 전환
+          const newProxy = this.proxyManager.switchEndpoint();
+          if (newProxy) {
+            console.log('🚀 새로운 엔드포인트로 재시도:', newProxy);
+            await this.humanDelay();
+            return this.extractVideoInfo(url, retryCount + 1);
+          } else {
+            console.log('🔄 모든 엔드포인트 실패, 프록시 비활성화 후 재시도...');
+
+            // 모든 엔드포인트 실패 시 프록시 비활성화
+            const originalEnabled = this.proxyManager.enabled;
+            this.proxyManager.enabled = false;
+
+            try {
+              return await this.extractVideoInfo(url, retryCount + 1);
+            } finally {
+              // 프록시 설정 복원
+              this.proxyManager.enabled = originalEnabled;
+            }
+          }
+        } else {
+          console.log(`🔄 비디오 추출 시도 ${retryCount + 1} 실패, 프록시 로테이션 중...`);
+          this.proxyManager.rotateSession();
+          await this.humanDelay();
+          return this.extractVideoInfo(url, retryCount + 1);
+        }
       }
-      
+
       throw new Error(`비디오 정보 추출 실패: ${error.message}`);
     }
   }
@@ -149,13 +178,13 @@ class VideoInfoExtractor {
    */
   buildStealthArgs(url) {
     const args = [];
-    
-    // SmartProxy 설정
+
+    // SmartProxy 설정 + HTTPS 터널링 강제
     const proxy = this.proxyManager.getProxy();
     if (proxy) {
       args.push('--proxy', proxy);
     }
-    
+
     // 완벽한 스텔스 헤더 세트
     args.push(
       '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
@@ -171,33 +200,36 @@ class VideoInfoExtractor {
       '--add-header', 'Sec-Fetch-User:?1',
       '--add-header', 'Cache-Control:max-age=0'
     );
-    
+
     // 인간적인 행동 패턴
     const randomRate = 100 + Math.random() * 100; // 100-200K 랜덤
     const randomSleep = 2 + Math.random() * 3;    // 2-5초 랜덤
-    
+
     args.push(
       '--limit-rate', `${Math.floor(randomRate)}K`,
       '--sleep-interval', `${Math.floor(randomSleep)}`,
       '--max-sleep-interval', '10'
     );
-    
-    // YouTube 우회 옵션
+
+    // SSL/TLS 최적화 + YouTube 우회 옵션
     args.push(
       '--no-check-certificate',
       '--prefer-insecure',
       '--no-call-home',
+      '--socket-timeout', '30',
+      '--retries', '3',
+      '--fragment-retries', '3',
       '--quiet',
       '--no-warnings'
     );
-    
+
     // 출력 옵션
     args.push(
       '--dump-json',
       '--no-playlist',
       url
     );
-    
+
     return args;
   }
 

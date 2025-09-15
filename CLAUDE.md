@@ -1,402 +1,156 @@
-# 📋 YouTube 다운로더 프로젝트 - 전체 진행 상황
+# CLAUDE.md
 
-## 🎯 프로젝트 목표
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-**"웹에서 구동가능한 YouTube 다운로더 웹사이트를 빌드하고, 로컬에서는 성공하지만 배포 후 다운로드가 선택한 포맷 및 화질대로 다운로드되도록 하는 것"**
+## 프로젝트 개요
 
-- 배포 환경: AWS EC2
-- 도메인: https://mediadownloader.hqmx.net
-- TDD(Test-Driven Development) 방식으로 개발
+TDD 방식으로 개발된 YouTube 미디어 다운로더 백엔드 시스템. YouTube 봇 감지를 우회하는 고급 스텔스 시스템이 통합되어 있습니다.
 
----
+- **배포 환경**: AWS EC2 (Ubuntu)
+- **라이브 URL**: https://mediadownloader.hqmx.net
+- **개발 방식**: TDD (Test-Driven Development)
+- **핵심 기능**: YouTube 봇 감지 우회, 스텔스 다운로드
 
-## 📊 프로젝트 진행 히스토리
+## 개발 명령어
 
-### 🟢 1단계: TDD 기반 시스템 구축 (완료)
-**기간**: 초기 개발
-**목표**: 테스트 중심 개발로 안정적인 기반 구축
-
-#### ✅ 완료 사항:
-- **서비스 계층 개발**:
-  - `urlValidator.js`: YouTube URL 검증
-  - `videoInfoExtractor.js`: yt-dlp를 이용한 비디오 정보 추출
-  - `downloadManager.js`: 다운로드 관리
-- **API 계층**: Express.js 기반 REST API
-- **테스트**: Jest 기반 39개 단위/통합 테스트 (100% 통과)
-- **프론트엔드**: HTML/CSS/JS 반응형 웹 UI
-
-#### 📈 성과:
-- ✅ 로컬 환경에서 완벽 작동
-- ✅ TDD RED-GREEN-REFACTOR 사이클 완료
-- ✅ 모든 테스트 통과
-
----
-
-### 🟢 2단계: GitHub 연동 및 EC2 배포 (완료)
-**기간**: 배포 준비
-**목표**: 프로덕션 환경 구축
-
-#### ✅ 완료 사항:
-- **GitHub Repository**: https://github.com/hqmx/mediadownloader-backend.git
-- **EC2 배포 스크립트**: `setup-ec2.sh` 자동화
-- **환경 설정**: .env, PM2, nginx 설정
-- **도메인 연결**: mediadownloader.hqmx.net
-
-#### 📈 성과:
-- ✅ EC2 서버 구동 성공
-- ✅ HTTP 접속 성공
-- ✅ 도메인 연결 완료
-
----
-
-### 🟢 3단계: HTTPS 및 Cloudflare 연동 (완료)
-**기간**: 보안 설정
-**목표**: HTTPS 접속 및 SSL 인증서 설정
-
-#### 🔧 해결한 문제들:
-1. **에러 522**: Cloudflare가 origin 서버에 연결 불가
-   - 해결: AWS 보안 그룹 포트 443 추가
-2. **에러 521**: 웹서버가 연결 거부
-   - 해결: nginx SSL 설정 추가
-3. **에러 526**: 유효하지 않은 SSL 인증서
-   - 해결: Cloudflare SSL 모드를 "Flexible"로 변경
-
-#### 📈 성과:
-- ✅ HTTPS 접속 성공: https://mediadownloader.hqmx.net
-- ✅ 웹 UI 정상 작동
-
----
-
-### 🔴 4단계: YouTube 봇 감지 문제 발생 (문제 단계)
-**기간**: 프로덕션 테스트
-**문제**: YouTube가 서버 요청을 봇으로 감지하여 차단
-
-#### ❌ 발생한 문제:
-```
-ERROR: [youtube] ruSIBuL4kmk: Sign in to confirm you're not a bot. 
-Use --cookies-from-browser or --cookies for the authentication.
-```
-
-#### 🔍 원인 분석:
-- **로컬 환경**: 주거용 IP + 실제 브라우저 세션 = ✅ 정상 작동
-- **EC2 환경**: 데이터센터 IP + 서버 환경 = ❌ 봇으로 감지
-
-#### 🚫 시도했지만 실패한 방법들:
-1. User-Agent 변경
-2. 기본적인 헤더 추가
-3. 쿠키 수동 추가
-4. Rate limiting
-
----
-
-### 🟢 5단계: 전문가 솔루션 연구 및 스텔스 시스템 구현 (완료)
-**기간**: 문제 해결 단계
-**목표**: GitHub 전문가 의견 기반 고급 봇 우회 시스템
-
-#### 📚 전문가 의견 분석:
-**출처**: GitHub Community Discussion #173021
-**핵심 해결책**:
-1. **주거용 프록시 사용**: 가정용 IP로 위장
-2. **완벽한 스텔스 헤더**: 실제 브라우저 요청 모방  
-3. **인간 행동 시뮬레이션**: 마우스 움직임, 스크롤, 대기시간
-4. **Playwright 스텔스**: 브라우저 자동화 감지 우회
-
-#### 🛠️ 구현한 솔루션:
-
-##### A. SmartProxy 통합 (`smartProxyManager.js`)
-```javascript
-// 주거용 프록시 연결
-const proxyUrl = `http://${username}-session-${sessionId}:${password}@${endpoint}:${port}`;
-
-// IP 로테이션
-rotateSession() {
-  this.config.sessionId = this.generateSessionId();
-  this.proxyUrl = this.buildProxyUrl();
-}
-```
-
-##### B. 스텔스 yt-dlp (`videoInfoExtractor.js` 수정)
-```javascript
-// 완벽한 브라우저 헤더 세트
-'--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)...',
-'--add-header', 'Accept:text/html,application/xhtml+xml...',
-'--add-header', 'Sec-Fetch-Dest:document',
-'--add-header', 'DNT:1',
-
-// 인간적 행동 패턴
-'--limit-rate', `${100 + Math.random() * 100}K`,  // 랜덤 속도
-'--sleep-interval', `${2 + Math.random() * 3}`,   // 랜덤 대기
-```
-
-##### C. Playwright 스텔스 브라우저 (`stealthBrowser.js`)
-```javascript
-// 완벽한 스텔스 설정
-'--disable-blink-features=AutomationControlled',
-'--disable-web-security',
-
-// navigator.webdriver 완전 제거
-Object.defineProperty(navigator, 'webdriver', {
-  get: () => undefined
-});
-
-// 인간 행동 시뮬레이션
-await page.mouse.move(x, y, { steps: 20 });
-await page.waitForTimeout(2000 + Math.random() * 3000);
-```
-
-##### D. 스마트 폴백 시스템 (`smartDownloader.js`)
-```javascript
-// 1차: yt-dlp + SmartProxy + 스텔스 헤더
-// 2차: Playwright + SmartProxy + 인간 행동
-// 예상 성공률: 95-99%
-```
-
-#### 📈 성과:
-- ✅ SmartProxy 주거용 프록시 통합
-- ✅ 완벽한 스텔스 헤더 시스템
-- ✅ Playwright 브라우저 자동화
-- ✅ 인간 행동 시뮬레이션
-- ✅ 자동 폴백 시스템
-
----
-
-## 🎯 현재 상황 (2025-09-13 09:30)
-
-### ✅ 완료된 구현:
-1. **SmartProxy 매니저**: 주거용 프록시 연동 완료 (HTTP만 작동)
-2. **스텔스 videoInfoExtractor**: yt-dlp + 완벽한 헤더 위장
-3. **Playwright 스텔스 브라우저**: 인간 행동 시뮬레이션 (SSL 문제)
-4. **통합 SmartDownloader**: 자동 폴백 시스템 (부분 작동)
-5. **환경 설정**: .env 템플릿, 설치 스크립트
-6. **문서화**: README.md, CLAUDE.md, planb.md 업데이트
-7. **VideoInfoExtractor 수정**: 모듈 exports 문제 해결
-
-### 📋 준비된 파일들:
-- `src/services/smartProxyManager.js` ✅
-- `src/services/stealthBrowser.js` ✅  
-- `src/services/smartDownloader.js` ✅
-- `src/services/videoInfoExtractor.js` (스텔스 기능 추가) ✅
-- `src/controllers/downloadController.js` (SmartDownloader 통합) ✅
-- `scripts/install-stealth.sh` ✅
-- `.env.production` ✅
-- `package.json` (Playwright 패키지 추가) ✅
-
----
-
-## 🚀 다음 단계 플랜
-
-### 🔥 즉시 실행 (우선순위 1)
-
-#### 1. GitHub 푸시 및 EC2 배포
+### 테스트
 ```bash
-# 로컬에서
-git add .
-git commit -m "🥷 YouTube 봇 감지 우회 스텔스 시스템 구현"
-git push origin main
+# 모든 테스트 실행
+npm test
 
-# EC2에서
-cd /home/ubuntu/mediadownloader-backend
-git pull origin main
+# 특정 테스트 파일 실행
+npm test videoInfoExtractor.test.js
+
+# 테스트 감시 모드
+npm run test:watch
+
+# 커버리지 리포트
+npm run test:coverage
 ```
 
-#### 2. 스텔스 시스템 설치
+### 서버 실행
 ```bash
-# EC2에서
+# 개발 모드 (nodemon)
+npm run dev
+
+# 프로덕션 모드
+npm start
+
+# PM2로 백그라운드 실행 (EC2)
+pm2 start src/server.js --name mediadownloader
+pm2 logs mediadownloader
+pm2 restart mediadownloader
+```
+
+### 스텔스 시스템 설치 (EC2 배포용)
+```bash
+# 기본 환경 설정
+chmod +x scripts/setup-ec2.sh
+./scripts/setup-ec2.sh
+
+# 스텔스 시스템 설치
 chmod +x scripts/install-stealth.sh
 ./scripts/install-stealth.sh
 
 # SmartProxy 자격증명 설정
 cp .env.production .env
-nano .env
-# SMARTPROXY_USERNAME=실제값
-# SMARTPROXY_PASSWORD=실제값
+nano .env  # SMARTPROXY_USERNAME, SMARTPROXY_PASSWORD 입력
 ```
 
-#### 3. 애플리케이션 재시작 및 테스트
-```bash
-pm2 restart mediadownloader
-pm2 logs mediadownloader
+## 아키텍처 및 핵심 컴포넌트
 
-# API 테스트
-curl -X POST https://mediadownloader.hqmx.net/api/video-info \
-  -H "Content-Type: application/json" \
-  -d '{"url":"https://www.youtube.com/watch?v=dQw4w9WgXcQ"}'
+### 계층형 아키텍처
+```
+src/
+├── services/           # 비즈니스 로직 계층
+│   ├── urlValidator.js             # URL 검증 서비스
+│   ├── videoInfoExtractor.js       # yt-dlp 기반 정보 추출 + 스텔스 헤더
+│   ├── downloadManager.js          # 파일 다운로드 관리
+│   ├── smartProxyManager.js        # SmartProxy 주거용 프록시 관리
+│   └── smartDownloader.js          # 통합 다운로더 (폴백 시스템)
+├── controllers/        # API 컨트롤러 계층
+│   └── downloadController.js       # HTTP 요청/응답 처리
+├── routes/             # 라우팅 계층
+│   └── api.js                      # API 엔드포인트 정의
+└── server.js           # Express 서버 진입점
 ```
 
----
+### 스텔스 시스템 아키텍처
+프로젝트는 YouTube 봇 감지를 우회하기 위한 고급 스텔스 시스템을 포함합니다:
 
-### 🔴 6단계: SmartProxy SSL 연결 문제 발생 (2025-09-13)
-**기간**: 문제 해결 단계
-**문제**: SmartProxy를 통한 HTTPS 연결 차단
+1. **SmartProxy 통합**: 주거용 프록시를 통한 IP 위장
+2. **완벽한 헤더 위장**: 실제 브라우저 요청 헤더 모방
+3. **다단계 폴백 시스템**: yt-dlp → Playwright 브라우저 → 인간 행동 시뮬레이션
+4. **세션 로테이션**: 자동 IP 변경 및 지문 회피
 
-#### 🔴 발생한 문제:
-```bash
-# SmartProxy HTTP 연결 테스트
-curl --proxy http://smart-hqmxsmartproxy:Straight8@proxy.smartproxy.net:3120 http://httpbin.org/ip
-# 결과: ✅ 성공 - 실제 IP 변경 확인
-
-# SmartProxy HTTPS 연결 테스트  
-curl --proxy http://smart-hqmxsmartproxy:Straight8@proxy.smartproxy.net:3120 https://www.youtube.com
-# 결과: ❌ SSL_ERROR_SYSCALL
+### 테스트 구조
+TDD 방식으로 개발되어 39개의 단위/통합 테스트가 있습니다:
+```
+tests/
+├── unit/               # 단위 테스트
+│   ├── __mocks__/      # 모의 객체
+│   ├── urlValidator.test.js
+│   ├── videoInfoExtractor.test.js
+│   └── downloadManager.test.js
+├── integration/        # 통합 테스트
+└── setup.js           # 테스트 환경 설정
 ```
 
-#### 🔍 원인 분석:
-1. **YouTube SSL 차단**: 프록시 IP 범위 탐지 → SSL 연결 거부
-2. **TLS 지문 불일치**: JA3 TLS 지문과 프록시 IP의 불일치
-3. **데이터센터 IP 인식**: YouTube가 데이터센터 IP 대역 필터링
+## 환경 설정 및 배포
 
-#### 📊 현재 작동 상태:
-- ✅ **웹 인터페이스**: 정상 접속 가능
-- ✅ **영상 다운로드**: 저화질로 성공적으로 다운로드
-- ❌ **영상 정보 분석**: SSL 문제로 분석 실패
-- ⚠️ **SmartDownloader**: 1방법(yt-dlp) 실패, 2방법(브라우저) SSL 문제
-
-#### 🛠️ 해결 방안 연구:
-
-**방법 1: 쿠키 기반 접근 (추천)**
-```javascript
-// 1. 프록시 없이 YouTube 접속으로 쿠키 획득
-// 2. 획득한 쿠키를 yt-dlp에 전달
-// 3. 프록시 사용 불필요
---cookies-from-browser chrome
-// 또는
---cookies cookies.txt
+### 로컬 개발
+`.env` 파일에 기본 설정만 필요:
+```env
+NODE_ENV=development
+PORT=3000
+YTDLP_PATH=/usr/local/bin/yt-dlp
 ```
 
-**방법 2: SSL/TLS Passthrough**
-```bash
-# SmartProxy에서 HTTPS CONNECT 터널링 설정
-# TLS 핸드셰이크를 클라이언트가 직접 처리
-# 프록시는 단순 터널 역할만 수행
+### 프로덕션 배포 (EC2)
+스텔스 기능을 위한 SmartProxy 설정 필수:
+```env
+NODE_ENV=production
+SMARTPROXY_ENABLED=true
+SMARTPROXY_USERNAME=your_username  # 실제 값 필요
+SMARTPROXY_PASSWORD=your_password  # 실제 값 필요
+SMARTPROXY_ENDPOINT=gate.smartproxy.com
+SMARTPROXY_PORT=10000
+USE_BROWSER_FALLBACK=true
 ```
 
-**방법 3: 대체 프록시 서비스**
-```bash
-# Residential Proxy with SSL support
-# 또는 HTTP-only 프록시 사용
-```
+### 의존성 관리
+- **런타임**: yt-dlp, ffmpeg, chromium (Playwright)
+- **Node.js 패키지**: Express, Playwright, Jest
+- **외부 서비스**: SmartProxy (주거용 프록시)
 
----
+## 현재 이슈 및 해결 상태
 
-### 📊 예상 결과 및 성공 지표
+### 주요 이슈: SmartProxy SSL 연결 문제
+**상황**: SmartProxy를 통한 YouTube HTTPS 접속 시 SSL_ERROR_SYSCALL 발생
+**원인**: YouTube의 프록시 IP 범위 탐지 및 SSL 연결 차단
+**해결 방안**: 쿠키 기반 접근 방법 구현 계획
 
-#### 🎯 기대 성과:
-1. **YouTube 봇 감지 우회**: 95% 이상 성공률 (현재 SSL 문제로 중단)
-2. **다중 폴백 시스템**: yt-dlp 실패 시 브라우저 모드 자동 전환
-3. **안정적 서비스**: 지속 가능한 YouTube 다운로드
-
-#### 📈 성공 지표 (현재 상태):
-- ❌ 비디오 정보 추출: SSL 문제로 실패
-- ✅ 다운로드 실행: 저화질로 성공
-- ⚠️ 에러 로그: SSL 관련 에러 발생
-- ✅ 헬스체크 통과: 웹 서비스 정상
-
----
-
-### 🔧 문제 해결 예상 시나리오
-
-#### 시나리오 1: SmartProxy SSL 연결 실패 (NEW)
-**증상**: `SSL_ERROR_SYSCALL` 또는 `SSL connection failed`
-**해결**: 
-1. 쿠키 기반 접근 방법 구현 대기
-2. SSL passthrough 설정 시도
-3. 디버깅: curl 테스트로 연결 상태 확인
-   ```bash
-   curl --proxy http://user:pass@proxy.smartproxy.net:3120 http://httpbin.org/ip
-   ```
-
-#### 시나리오 2: SmartProxy 연결 실패
-**증상**: `SmartProxy URL not available` 에러
-**해결**: .env 파일의 SMARTPROXY_USERNAME, SMARTPROXY_PASSWORD 확인
-
-#### 시나리오 3: Playwright 설치 실패
-**증상**: `chromium.launch() failed` 에러
-**해결**: 
-```bash
-sudo apt-get install -y libnss3 libxss1 libasound2
-npx playwright install-deps chromium
-```
-
-#### 시나리오 4: 여전히 봇 감지 발생
-**증상**: YouTube 봇 에러 지속
-**해결**: 
-1. SmartProxy 세션 로테이션 확인
-2. 브라우저 모드로 강제 전환
-3. DEBUG_MODE=true로 상세 로그 확인
-
----
-
-## 🚀 다음 단계 자세한 플랜
-
-### 🔥 즉시 실행 (우선순위 1)
-
-#### 1. 쿠키 기반 접근 방법 구현
-```bash
-# 1단계: Playwright로 YouTube 쿠키 추출 기능 추가
-# 2단계: yt-dlp에 --cookies 옵션 적용
-# 3단계: 프록시 없이 직접 연결 테스트
-```
-
-#### 2. SSL Passthrough 설정 시도
-```bash
-# SmartProxy 설정에서 CONNECT 터널링 활성화
-# 또는 대체 프록시 서비스 연구
-```
-
-#### 3. 디버깅 및 모니터링 강화
-```bash
-# SSL 연결 로그 상세화
-# SmartProxy 연결 상태 실시간 모니터링
-# 에러 패턴 분석 도구 추가
-```
-
----
-
-### 💡 추가 개선 아이디어 (미래)
-
-### 단기 (1주일 내):
-1. **SSL 문제 완전 해결**: 쿠키 기반 접근 완성
-2. **모니터링 시스템**: 성공률 통계, SSL 에러 알림
-3. **연결 안정성 개선**: 재연결 로직 강화
-2. **캐싱 시스템**: 비디오 정보 캐시로 응답 속도 향상
-3. **다중 프록시**: 여러 프록시 서비스 지원
-
-### 중기 (1개월 내):
-1. **다른 플랫폼 지원**: Instagram, TikTok, Twitter
-2. **배치 다운로드**: 플레이리스트 전체 다운로드
-3. **사용자 인증**: 개인별 다운로드 기록
-
-### 장기 (3개월 내):
-1. **AI 기반 최적화**: 성공 패턴 학습 및 자동 최적화
-2. **모바일 앱**: React Native 기반 모바일 앱
-3. **CDN 통합**: 다운로드 속도 최적화
-
----
-
-## 📞 지원 및 연락처
-
-- **GitHub Repository**: https://github.com/hqmx/mediadownloader-backend
-- **라이브 사이트**: https://mediadownloader.hqmx.net
-- **이슈 보고**: GitHub Issues
-- **개발자**: Claude Code + TDD 방식
-
----
-
-## ⚠️ 중요 알림
-
-1. **SmartProxy 구독 필수**: 스텔스 기능은 SmartProxy 계정이 필요합니다
-2. **법적 준수**: 저작권 보호 콘텐츠 다운로드 시 해당 플랫폼 이용약관 준수
-3. **보안**: .env 파일은 절대 공개하지 마세요
-4. **백업**: 정기적인 데이터베이스/설정 백업 권장
-
----
-
-**마지막 업데이트**: 2025-09-13 09:30 KST  
-**현재 단계**: SmartProxy SSL 연결 문제 분석 완료, 해결 방안 연구 중  
-**다음 액션**: 쿠키 기반 접근 방법 구현 → SSL Passthrough 설정 → 대안 프록시 연구
-
-**현재 작동 상태 요약**:
-- ✅ 웹 UI: 접속 가능
-- ✅ 다운로드: 저화질 영상 다운로드 성공
-- ❌ 정보 분석: SSL 문제로 실패
+### 현재 작동 상태
+- ✅ 웹 인터페이스: 정상 작동
+- ✅ 영상 다운로드: 저화질로 성공
+- ❌ 영상 정보 분석: SSL 문제로 실패
 - ⚠️ SmartProxy: HTTP 작동, HTTPS 차단
+
+## 개발 가이드라인
+
+### TDD 워크플로우
+1. **RED**: 실패하는 테스트 작성
+2. **GREEN**: 최소한의 코드로 테스트 통과
+3. **REFACTOR**: 코드 개선 및 리팩터링
+
+### 코드 패턴
+- **비동기 처리**: async/await 사용
+- **에러 처리**: try-catch 블록과 적절한 HTTP 상태 코드
+- **모듈화**: 서비스별 책임 분리
+- **설정 관리**: 환경 변수를 통한 설정 외부화
+
+### 보안 고려사항
+- CORS 및 보안 헤더 설정 (helmet.js)
+- 입력 검증 및 sanitization
+- 임시 파일 자동 정리
+- SmartProxy 자격증명 보호 (.env 파일)
