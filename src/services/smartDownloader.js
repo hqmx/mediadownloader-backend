@@ -1,8 +1,10 @@
 const StealthBrowser = require('./stealthBrowser');
+const SmartProxyManager = require('./smartProxyManager');
 
 class SmartDownloader {
   constructor() {
     this.stealthBrowser = new StealthBrowser();
+    this.proxyManager = new SmartProxyManager();
     this.attemptCount = 0;
 
     // 단순화: 성공하는 방법만 사용
@@ -172,8 +174,8 @@ class SmartDownloader {
     
     return {
       smartProxy: {
-        enabled: proxyManager.isEnabled(),
-        sessionInfo: proxyManager.getSessionInfo()
+        enabled: this.proxyManager.isEnabled(),
+        sessionInfo: this.proxyManager.getSessionInfo()
       },
       services: {
         ytdlp: true,
