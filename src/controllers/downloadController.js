@@ -1,4 +1,5 @@
 const SmartDownloader = require('../services/smartDownloader');
+const QuickCookieExtractor = require('../services/quickCookieExtractor');
 const downloadManager = require('../services/downloadManager');
 const urlValidator = require('../services/urlValidator');
 
@@ -30,8 +31,18 @@ class DownloadController {
 
       console.log('=== 비디오 정보 추출 시작 ===');
       console.log('요청 URL:', url);
-      
-      const videoInfo = await this.smartDownloader.extractVideoInfo(url);
+
+      let videoInfo;
+      try {
+        // 1차: SmartDownloader 시도
+        videoInfo = await this.smartDownloader.extractVideoInfo(url);
+      } catch (smartError) {
+        console.log('🔄 SmartDownloader 실패, QuickCookieExtractor로 폴백...');
+        console.log('SmartDownloader 오류:', smartError.message);
+
+        // 2차: QuickCookieExtractor 폴백
+        videoInfo = await QuickCookieExtractor.extractVideoInfo(url);
+      }
       
       res.json({
         success: true,
@@ -86,12 +97,19 @@ class DownloadController {
         });
       }
 
-      // 완전한 브라우저 기반 다운로드 (yt-dlp 우회)
-      console.log('🎬 브라우저 세션에서 직접 다운로드');
-      const SmartDownloader = require('../services/smartDownloader');
+      console.log('🎬 다운로드 시작');
 
-      // SmartDownloader의 downloadVideo 메서드 사용 (브라우저 직접 다운로드)
-      const result = await SmartDownloader.downloadVideo(url, downloadOptions);
+      let result;
+      try {
+        // 1차: SmartDownloader 시도
+        result = await SmartDownloader.downloadVideo(url, downloadOptions);
+      } catch (smartError) {
+        console.log('🔄 SmartDownloader 다운로드 실패, QuickCookieExtractor로 폴백...');
+        console.log('SmartDownloader 오류:', smartError.message);
+
+        // 2차: QuickCookieExtractor 폴백
+        result = await QuickCookieExtractor.downloadVideo(url, downloadOptions);
+      }
       
       res.json({
         success: true,
