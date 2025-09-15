@@ -18,7 +18,7 @@ class StealthBrowser {
   }
 
   async extractVideoInfo(url) {
-    console.log('🎭 진짜 사람처럼 브라우저 시작...');
+    console.log('🎭 브라우저 시작...');
 
     const proxyUrl = this.proxyManager.getProxy();
     console.log('SmartProxy:', proxyUrl ? 'enabled' : 'disabled');
@@ -27,19 +27,24 @@ class StealthBrowser {
     const context = await this.createStealthContext(browser);
 
     try {
-      // 1. YouTube 메인 페이지부터 자연스럽게 시작
-      const page = await this.startNaturalBrowsing(context);
+      // 1. 바로 비디오 페이지로 이동
+      const page = await context.newPage();
+      await this.loadCookies(page);
 
-      // 2. 목표 비디오로 진짜 사람처럼 이동
-      await this.navigateToVideoLikeHuman(page, url);
+      console.log('🎯 비디오 페이지로 직접 이동...');
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 30000
+      });
 
-      // 3. 비디오 정보 추출 (사람이 보는 것처럼)
+      // 2. 짧은 대기 후 정보 추출
+      await page.waitForTimeout(2000);
       const videoInfo = await this.extractVideoInfoLikeHuman(page);
 
-      // 4. 쿠키 저장 (다음 세션에서 활용)
+      // 3. 쿠키 저장
       await this.saveCookies(context);
 
-      console.log('✅ 진짜 사람처럼 브라우징 완료!');
+      console.log('✅ 비디오 정보 추출 완료!');
       return videoInfo;
 
     } catch (error) {
