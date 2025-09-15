@@ -81,6 +81,9 @@ class DownloadManager {
     try {
       console.log(`🚀 SmartDownloader 다운로드 시작: ${options.url}`);
 
+      // 쿠키 변환 (612 터널링 오류 해결)
+      this.convertCookiesForYtDlp();
+
       // Plan B 스텔스 시스템으로 다운로드
       const args = this.buildSmartYtDlpArgs(options, filePath);
 
@@ -298,11 +301,21 @@ class DownloadManager {
   buildSmartYtDlpArgs(options, outputPath) {
     const args = [];
 
-    // SmartProxy 설정 (SmartDownloader의 프록시 매니저 활용)
-    const proxyManager = this.smartDownloader.stealthBrowser.proxyManager;
-    const proxy = proxyManager.getProxy();
-    if (proxy) {
-      args.push('--proxy', proxy);
+    // 🍪 쿠키 기반 인증 (프록시 터널링 문제 우회)
+    const cookiesPath = '/tmp/youtube-cookies.json';
+    const fs = require('fs');
+    if (fs.existsSync(cookiesPath)) {
+      // Netscape 쿠키 형식으로 변환하여 yt-dlp에 전달
+      args.push('--cookies', '/tmp/youtube-cookies.txt');
+      console.log('🍪 쿠키 인증 사용 - 프록시 터널링 우회');
+    } else {
+      // 쿠키가 없을 때만 SmartProxy 사용
+      const proxyManager = this.smartDownloader.stealthBrowser.proxyManager;
+      const proxy = proxyManager.getProxy();
+      if (proxy) {
+        args.push('--proxy', proxy);
+        console.log('🌐 SmartProxy 사용');
+      }
     }
 
     // 완벽한 스텔스 헤더 세트 (videoInfoExtractor와 동일)
@@ -377,6 +390,42 @@ class DownloadManager {
     };
 
     return contentTypes[format] || 'application/octet-stream';
+  }
+
+  /**
+   * Playwright JSON 쿠키를 Netscape 형식으로 변환
+   */
+  convertCookiesForYtDlp() {
+    const fs = require('fs');
+    const jsonPath = '/tmp/youtube-cookies.json';
+    const netscapePath = '/tmp/youtube-cookies.txt';
+
+    try {
+      if (!fs.existsSync(jsonPath)) return false;
+
+      const cookies = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+      let netscapeContent = '# Netscape HTTP Cookie File\n';
+
+      cookies.forEach(cookie => {
+        const line = [
+          cookie.domain || '.youtube.com',
+          cookie.domain?.startsWith('.') ? 'TRUE' : 'FALSE',
+          cookie.path || '/',
+          cookie.secure ? 'TRUE' : 'FALSE',
+          cookie.expires ? Math.floor(cookie.expires) : '0',
+          cookie.name,
+          cookie.value
+        ].join('\t');
+        netscapeContent += line + '\n';
+      });
+
+      fs.writeFileSync(netscapePath, netscapeContent);
+      console.log('🍪 쿠키 변환 완료:', cookies.length, '개');
+      return true;
+    } catch (error) {
+      console.error('쿠키 변환 실패:', error.message);
+      return false;
+    }
   }
 }
 
