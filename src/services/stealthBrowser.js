@@ -17,12 +17,19 @@ class StealthBrowser {
     this.sessionId = Date.now().toString();
   }
 
-  // 동일 세션에서 정보 추출 + 다운로드
+  // 동일 세션에서 정보 추출 + 다운로드 (SmartProxy 사용)
   async extractAndDownload(url, options) {
     console.log('🎭 동일 세션 브라우저 시작 (정보 추출 + 다운로드)...');
-    console.log('🍪 쿠키 기반 접근 - 프록시 없이 빠른 속도');
+    console.log('🌐 SmartProxy 주거용 IP로 위장');
 
-    const browser = await this.launchStealthBrowser(null);
+    // SmartProxy를 사용하여 주거용 IP로 위장
+    const SmartProxyManager = require('./smartProxyManager');
+    const proxyManager = new SmartProxyManager();
+    const proxy = proxyManager.getProxy();
+
+    console.log('🔄 프록시:', proxy ? '활성화' : '비활성화');
+
+    const browser = await this.launchStealthBrowser(proxy);
     const context = await this.createStealthContext(browser);
 
     try {
@@ -59,9 +66,15 @@ class StealthBrowser {
   async extractVideoInfo(url) {
     console.log('🎭 브라우저 시작...');
 
-    // 쿠키 기반 접근으로 SmartProxy 우회 (다운로드와 동일한 방식)
-    console.log('🍪 쿠키 기반 접근 - 프록시 없이 빠른 속도');
-    const browser = await this.launchStealthBrowser(null);
+    // SmartProxy를 사용하여 주거용 IP로 위장
+    console.log('🌐 SmartProxy 주거용 IP로 위장');
+    const SmartProxyManager = require('./smartProxyManager');
+    const proxyManager = new SmartProxyManager();
+    const proxy = proxyManager.getProxy();
+
+    console.log('🔄 프록시:', proxy ? '활성화' : '비활성화');
+
+    const browser = await this.launchStealthBrowser(proxy);
     const context = await this.createStealthContext(browser);
 
     try {
