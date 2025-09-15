@@ -299,7 +299,7 @@ class DownloadManager {
     const args = [];
 
     // SmartProxy 설정 (SmartDownloader의 프록시 매니저 활용)
-    const proxyManager = this.smartDownloader.videoExtractor.proxyManager;
+    const proxyManager = this.smartDownloader.stealthBrowser.proxyManager;
     const proxy = proxyManager.getProxy();
     if (proxy) {
       args.push('--proxy', proxy);
