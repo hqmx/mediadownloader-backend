@@ -4,7 +4,7 @@ const urlValidator = require('../services/urlValidator');
 
 class DownloadController {
   constructor() {
-    this.smartDownloader = new SmartDownloader();
+    this.smartDownloader = SmartDownloader;
   }
 
   /**
