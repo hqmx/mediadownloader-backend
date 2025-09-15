@@ -1,8 +1,8 @@
 class SmartProxyManager {
   constructor() {
     this.config = {
-      endpoint: process.env.SMARTPROXY_ENDPOINT || 'gate.smartproxy.com',
-      port: process.env.SMARTPROXY_PORT || '8000',
+      endpoint: process.env.SMARTPROXY_ENDPOINT || 'proxy.smartproxy.net',
+      port: process.env.SMARTPROXY_PORT || '3120',
       username: process.env.SMARTPROXY_USERNAME,
       password: process.env.SMARTPROXY_PASSWORD,
       sessionId: this.generateSessionId()
@@ -35,8 +35,8 @@ class SmartProxyManager {
       return null;
     }
     
-    // SmartProxy 포맷: username-session-sessionID:password@endpoint:port
-    const authString = `${username}-session-${sessionId}:${password}`;
+    // SmartProxy 기본 포맷: username:password@endpoint:port (세션 없이)
+    const authString = `${username}:${password}`;
     return `http://${authString}@${endpoint}:${port}`;
   }
 
