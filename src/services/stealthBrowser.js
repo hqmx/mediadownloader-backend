@@ -283,8 +283,8 @@ class StealthBrowser {
     await this.humanBehavior.typeNaturally(page, targetUrl);
     await page.keyboard.press('Enter');
 
-    // 페이지 로드 대기
-    await page.waitForLoadState('networkidle', { timeout: 30000 });
+    // 페이지 로드 대기 (SmartProxy 사용 시 더 오래 걸림)
+    await page.waitForLoadState('networkidle', { timeout: 60000 });
     await this.humanBehavior.naturalPageLoadWait(page);
 
     // 비디오 페이지에서의 자연스러운 행동
