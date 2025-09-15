@@ -1,26 +1,20 @@
-const VideoInfoExtractor = require('./videoInfoExtractor');
 const StealthBrowser = require('./stealthBrowser');
-const MasterStealthController = require('./masterStealthController');
 
 class SmartDownloader {
   constructor() {
-    this.videoExtractor = new VideoInfoExtractor();
-    this.browserExtractor = new StealthBrowser();
-    this.masterStealth = new MasterStealthController();
+    this.stealthBrowser = new StealthBrowser();
     this.attemptCount = 0;
-    
+
+    // 단순화: 성공하는 방법만 사용
     this.methods = [
-      { 
-        name: 'yt-dlp-stealth', 
-        handler: this.tryYtDlpStealth.bind(this),
-        description: 'yt-dlp with SmartProxy and stealth headers'
-      },
-      { 
-        name: 'browser-stealth', 
+      {
+        name: 'browser-stealth',
         handler: this.tryBrowserStealth.bind(this),
-        description: 'Playwright browser with SmartProxy and human simulation'
+        description: 'Playwright browser with cookie-based authentication'
       }
     ];
+
+    console.log('🎯 SmartDownloader 단순화 완료 - Playwright + 쿠키 인증만 사용');
   }
 
   async extractVideoInfo(url) {
@@ -102,44 +96,18 @@ class SmartDownloader {
     throw new Error(`모든 추출 방법이 실패했습니다: ${errors.map(e => `${e.method}(${e.error})`).join(', ')}`);
   }
 
-  async tryYtDlpStealth(url) {
-    console.log('🔧 yt-dlp + SmartProxy + 스텔스 헤더 사용');
-    
-    // VideoInfoExtractor가 이미 스텔스 기능 내장됨
-    const result = await this.videoExtractor.extractVideoInfo(url);
-    
-    if (!result || !result.videoId) {
-      throw new Error('yt-dlp에서 유효한 비디오 정보를 가져오지 못했습니다');
-    }
-    
-    return result;
-  }
 
   async tryBrowserStealth(url) {
-    console.log('🌐 Playwright + Plan B 완전 스텔스 시스템 사용');
-    
-    // 시도 횟수에 따른 스텔스 레벨 조정
-    if (this.attemptCount > 1) {
-      this.masterStealth.setStealthLevel('MAXIMUM');
-    }
-    if (this.attemptCount > 2) {
-      this.masterStealth.setStealthLevel('EXTREME');
-    }
-    
-    const result = await this.browserExtractor.extractVideoInfo(url);
-    
+    console.log('🌐 Playwright + 쿠키 기반 인증 사용');
+
+    const result = await this.stealthBrowser.extractVideoInfo(url);
+
     if (!result || !result.videoId) {
       throw new Error('브라우저에서 유효한 비디오 정보를 가져오지 못했습니다');
     }
-    
-    // 스텔스 성능 통계 로깅
-    const stealthStats = this.masterStealth.getSessionStats();
-    console.log(`📊 스텔스 성공률: ${stealthStats.successRate.toFixed(1)}%, 탐지 이벤트: ${stealthStats.detectionEvents.length}개`);
-    
-    return {
-      ...result,
-      stealthStats
-    };
+
+    console.log(`✅ 비디오 정보 추출 성공: ${result.title}`);
+    return result;
   }
 
   async randomDelay() {
@@ -149,35 +117,11 @@ class SmartDownloader {
   }
 
   logSuccess(method, duration) {
-    const logData = {
-      method,
-      duration,
-      timestamp: new Date().toISOString(),
-      success: true,
-      stealthStats: method === 'browser-stealth' ? this.masterStealth.getSessionStats() : null
-    };
-    
-    // 성공 로그 (나중에 파일로 저장 가능)
-    console.log('📊 성공 통계:', logData);
-    
-    // 성공 시 적응형 스텔스 최적화
-    if (method === 'browser-stealth') {
-      this.masterStealth.adaptiveStealth();
-    }
-  }
-
-  // 통계 및 모니터링용 메서드들
-  getMethodStats() {
-    // 향후 구현: 각 방법별 성공률 통계
-    return {
-      'yt-dlp-stealth': { attempts: 0, successes: 0, successRate: 0 },
-      'browser-stealth': { attempts: 0, successes: 0, successRate: 0 }
-    };
+    console.log(`✅ ${method} 성공 (${duration}ms)`);
   }
 
   async healthCheck() {
-    // SmartProxy 연결 상태 확인
-    const proxyManager = this.videoExtractor.proxyManager;
+    // 브라우저 상태 확인
     
     return {
       smartProxy: {
