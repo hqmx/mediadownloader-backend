@@ -3,12 +3,14 @@ const { Readable } = require('stream');
 const fs = require('fs');
 const path = require('path');
 const urlValidator = require('./urlValidator');
+const SmartDownloader = require('./smartDownloader');
 
 class DownloadManager {
   constructor() {
     this.ytdlpPath = 'yt-dlp';
     this.tempDir = '/tmp/mediadownloader';
     this.activeDownloads = new Map();
+    this.smartDownloader = new SmartDownloader();
     
     // 지원하는 포맷 정의
     this.supportedFormats = {
@@ -77,8 +79,11 @@ class DownloadManager {
     const filePath = path.join(this.tempDir, filename);
 
     try {
-      const args = this.buildYtDlpArgs(options, filePath);
-      
+      console.log(`🚀 SmartDownloader 다운로드 시작: ${options.url}`);
+
+      // Plan B 스텔스 시스템으로 다운로드
+      const args = this.buildSmartYtDlpArgs(options, filePath);
+
       return new Promise((resolve, reject) => {
         const process = spawn(this.ytdlpPath, args);
         let stderr = '';
@@ -95,9 +100,10 @@ class DownloadManager {
 
         process.on('close', (code) => {
           this.activeDownloads.delete(downloadId);
-          
+
           if (code === 0) {
             const stats = fs.statSync(filePath);
+            console.log(`✅ SmartDownloader 다운로드 성공: ${filename}`);
             resolve({
               success: true,
               downloadId: downloadId,
@@ -105,9 +111,11 @@ class DownloadManager {
               filename: filename,
               fileSize: stats.size,
               format: options.format,
-              quality: options.quality
+              quality: options.quality,
+              method: 'smart-downloader'
             });
           } else {
+            console.error(`❌ SmartDownloader 다운로드 실패: ${stderr}`);
             reject(new Error(`다운로드 실패: ${stderr}`));
           }
         });
@@ -274,6 +282,78 @@ class DownloadManager {
       args.push('--format', `best[height<=${options.quality.replace(/[^0-9]/g, '')}][ext=${options.format}]`);
     }
 
+    args.push('--output', outputPath);
+    args.push('--no-playlist');
+    args.push(options.url);
+
+    return args;
+  }
+
+  /**
+   * Plan B 스텔스 시스템 적용된 yt-dlp 인수 구성
+   * @param {Object} options
+   * @param {string} outputPath
+   * @returns {Array}
+   */
+  buildSmartYtDlpArgs(options, outputPath) {
+    const args = [];
+
+    // SmartProxy 설정 (SmartDownloader의 프록시 매니저 활용)
+    const proxyManager = this.smartDownloader.videoExtractor.proxyManager;
+    const proxy = proxyManager.getProxy();
+    if (proxy) {
+      args.push('--proxy', proxy);
+    }
+
+    // 완벽한 스텔스 헤더 세트 (videoInfoExtractor와 동일)
+    args.push(
+      '--user-agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      '--add-header', 'Accept:text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+      '--add-header', 'Accept-Language:en-US,en;q=0.9',
+      '--add-header', 'Accept-Encoding:gzip, deflate, br',
+      '--add-header', 'DNT:1',
+      '--add-header', 'Connection:keep-alive',
+      '--add-header', 'Upgrade-Insecure-Requests:1',
+      '--add-header', 'Sec-Fetch-Dest:document',
+      '--add-header', 'Sec-Fetch-Mode:navigate',
+      '--add-header', 'Sec-Fetch-Site:none',
+      '--add-header', 'Sec-Fetch-User:?1',
+      '--add-header', 'Cache-Control:max-age=0'
+    );
+
+    // 인간적인 행동 패턴
+    const randomRate = 100 + Math.random() * 100; // 100-200K 랜덤
+    const randomSleep = 2 + Math.random() * 3;    // 2-5초 랜덤
+
+    args.push(
+      '--limit-rate', `${Math.floor(randomRate)}K`,
+      '--sleep-interval', `${Math.floor(randomSleep)}`,
+      '--max-sleep-interval', '10'
+    );
+
+    // SSL/TLS 최적화 + YouTube 우회 옵션
+    args.push(
+      '--no-check-certificate',
+      '--prefer-insecure',
+      '--no-call-home',
+      '--socket-timeout', '30',
+      '--retries', '3',
+      '--fragment-retries', '3',
+      '--quiet',
+      '--no-warnings'
+    );
+
+    // 포맷 및 품질 설정
+    if (options.audioOnly) {
+      args.push('--extract-audio', '--audio-format', options.format);
+      if (options.quality) {
+        args.push('--audio-quality', options.quality.replace(/[^0-9]/g, ''));
+      }
+    } else {
+      args.push('--format', `best[height<=${options.quality.replace(/[^0-9]/g, '')}][ext=${options.format}]`);
+    }
+
+    // 출력 설정
     args.push('--output', outputPath);
     args.push('--no-playlist');
     args.push(options.url);
