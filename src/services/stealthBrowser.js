@@ -437,43 +437,79 @@ class StealthBrowser {
     console.log('🎬 브라우저에서 직접 다운로드 처리 시작...');
 
     try {
-      // YouTube 다운로드 스트림 URL 추출 (yt-dlp 방식)
-      const downloadData = await page.evaluate((opts) => {
-        // adaptiveFormats와 formats 모두 확인
-        const streamingData = window.ytInitialPlayerResponse?.streamingData;
-        if (!streamingData) return null;
+      // YouTube Player API를 통한 스트림 정보 추출
+      const downloadData = await page.evaluate(async (opts) => {
+        try {
+          // YouTube Player API 직접 호출
+          const videoId = window.ytInitialPlayerResponse?.videoDetails?.videoId;
+          if (!videoId) return null;
 
-        const allFormats = [
-          ...(streamingData.formats || []),
-          ...(streamingData.adaptiveFormats || [])
-        ];
+          // YouTube 내부 API 호출
+          const playerResponse = await fetch(`https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-YouTube-Client-Name': '1',
+              'X-YouTube-Client-Version': '2.20231120.00.00'
+            },
+            body: JSON.stringify({
+              context: {
+                client: {
+                  clientName: 'WEB',
+                  clientVersion: '2.20231120.00.00'
+                }
+              },
+              videoId: videoId
+            })
+          });
 
-        // 요청된 품질과 포맷에 맞는 스트림 찾기
-        let targetFormat = null;
-        const qualityNum = opts.quality.replace('p', '');
+          const playerData = await playerResponse.json();
+          const streamingData = playerData.streamingData;
 
-        // 1차: 정확한 매치 시도
-        targetFormat = allFormats.find(format =>
-          format.qualityLabel?.includes(qualityNum) &&
-          format.mimeType?.includes(opts.format) &&
-          format.url
-        );
+          if (streamingData) {
+            const allFormats = [
+              ...(streamingData.formats || []),
+              ...(streamingData.adaptiveFormats || [])
+            ];
 
-        // 2차: 비슷한 품질로 매치 시도
-        if (!targetFormat) {
-          targetFormat = allFormats.find(format =>
-            format.mimeType?.includes(opts.format) &&
-            format.url
-          );
-        }
+            // 요청된 품질과 포맷에 맞는 스트림 찾기
+            let targetFormat = null;
+            const qualityNum = opts.quality.replace('p', '');
 
-        if (targetFormat && targetFormat.url) {
-          return {
-            url: targetFormat.url,
-            filesize: targetFormat.contentLength || 0,
-            quality: targetFormat.qualityLabel || opts.quality,
-            mimeType: targetFormat.mimeType
-          };
+            // 1차: 정확한 매치
+            targetFormat = allFormats.find(format =>
+              format.qualityLabel?.includes(qualityNum) &&
+              format.mimeType?.includes(opts.format) &&
+              format.url
+            );
+
+            // 2차: 비슷한 품질
+            if (!targetFormat) {
+              targetFormat = allFormats.find(format =>
+                format.mimeType?.includes(opts.format) &&
+                format.url
+              );
+            }
+
+            // 3차: 아무 비디오 포맷이나
+            if (!targetFormat) {
+              targetFormat = allFormats.find(format =>
+                format.mimeType?.includes('video') &&
+                format.url
+              );
+            }
+
+            if (targetFormat && targetFormat.url) {
+              return {
+                url: targetFormat.url,
+                filesize: targetFormat.contentLength || 0,
+                quality: targetFormat.qualityLabel || opts.quality,
+                mimeType: targetFormat.mimeType
+              };
+            }
+          }
+        } catch (error) {
+          console.error('YouTube API 호출 실패:', error);
         }
         return null;
       }, options);
