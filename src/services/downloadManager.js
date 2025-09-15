@@ -10,7 +10,7 @@ class DownloadManager {
     this.ytdlpPath = 'yt-dlp';
     this.tempDir = '/tmp/mediadownloader';
     this.activeDownloads = new Map();
-    this.smartDownloader = new SmartDownloader();
+    this.smartDownloader = SmartDownloader;
     
     // 지원하는 포맷 정의
     this.supportedFormats = {
