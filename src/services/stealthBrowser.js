@@ -386,6 +386,17 @@ class StealthBrowser {
           const details = window.ytInitialPlayerResponse.videoDetails;
           const streamingData = window.ytInitialPlayerResponse.streamingData;
 
+          // 브라우저 컨텍스트에서 formats 추출
+          let formats = [];
+          if (streamingData && streamingData.formats) {
+            formats = streamingData.formats.map(format => ({
+              format_id: format.itag,
+              format: format.mimeType?.split('/')[1]?.split(';')[0] || 'mp4',
+              quality: format.qualityLabel || 'unknown',
+              filesize: format.contentLength || 0
+            }));
+          }
+
           return {
             videoId: details.videoId,
             title: details.title,
@@ -394,7 +405,7 @@ class StealthBrowser {
             platform: 'youtube',
             description: details.shortDescription || '',
             viewCount: parseInt(details.viewCount) || 0,
-            formats: this.parseStreamingFormats(streamingData),
+            formats: formats,
             extractionMethod: 'ytInitialPlayerResponse'
           };
         }
