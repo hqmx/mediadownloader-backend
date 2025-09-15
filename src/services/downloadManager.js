@@ -336,9 +336,9 @@ class DownloadManager {
       '--no-check-certificate',
       '--prefer-insecure',
       '--no-call-home',
-      '--socket-timeout', '30',
-      '--retries', '3',
-      '--fragment-retries', '3',
+      '--socket-timeout', '60',
+      '--retries', '5',
+      '--fragment-retries', '5',
       '--quiet',
       '--no-warnings'
     );
