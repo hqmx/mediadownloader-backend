@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 TDD 방식으로 개발된 YouTube 미디어 다운로더 백엔드 시스템. YouTube 봇 감지를 우회하는 고급 스텔스 시스템이 통합되어 있습니다.
 
-- **배포 환경**: AWS EC2 (Ubuntu)
+- **배포 환경**: @hqmx-ec2.pem AWS EC2 (Ubuntu) 34.203.200.77 
 - **라이브 URL**: https://mediadownloader.hqmx.net
 - **개발 방식**: TDD (Test-Driven Development)
 - **핵심 기능**: YouTube 봇 감지 우회, 스텔스 다운로드
