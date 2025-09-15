@@ -86,18 +86,20 @@ class DownloadController {
         });
       }
 
-      // 동일 세션 다운로드 사용
-      console.log('🎬 동일 세션 다운로드 모드 사용');
-      const smartDownloader = require('../services/smartDownloader');
-      const result = await smartDownloader.downloadVideo(url, downloadOptions);
+      // 1단계: 브라우저로 비디오 정보 추출 (쿠키 생성)
+      console.log('🎬 1단계: 브라우저로 쿠키 생성');
+      const SmartDownloader = require('../services/smartDownloader');
+      await SmartDownloader.extractVideoInfo(url);
+
+      // 2단계: 생성된 쿠키로 yt-dlp 다운로드
+      console.log('🎬 2단계: 쿠키 기반 yt-dlp 다운로드');
+      const result = await downloadManager.downloadVideo(downloadOptions);
       
       res.json({
         success: true,
-        downloadId: result.downloadId || Date.now().toString(),
+        downloadId: result.downloadId,
         filename: result.filename,
-        fileSize: result.fileSize,
-        method: result.method,
-        message: 'Download completed successfully'
+        message: 'Download started successfully'
       });
     } catch (error) {
       console.error('Error starting download:', error);
