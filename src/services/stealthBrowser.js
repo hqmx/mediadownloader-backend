@@ -75,8 +75,28 @@ class StealthBrowser {
         timeout: 60000
       });
 
-      // 2. 짧은 대기 후 정보 추출
+      // 2. 더 많은 브라우저 활동 시뮬레이션
+      await page.waitForTimeout(3000);
+
+      // 사람처럼 페이지 스크롤
+      await page.mouse.move(500, 300);
+      await page.waitForTimeout(1000);
+      await this.humanBehavior.smoothScroll(page, 200);
       await page.waitForTimeout(2000);
+
+      // 비디오 재생 시도 (실제 사용자처럼)
+      try {
+        const playButton = await page.$('.ytp-play-button');
+        if (playButton) {
+          await playButton.click();
+          await page.waitForTimeout(2000);
+          // 바로 일시정지
+          await playButton.click();
+        }
+      } catch (error) {
+        // 무시
+      }
+
       const videoInfo = await this.extractVideoInfoLikeHuman(page);
 
       // 3. 쿠키 저장
