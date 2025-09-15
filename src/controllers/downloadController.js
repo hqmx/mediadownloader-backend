@@ -86,13 +86,8 @@ class DownloadController {
         });
       }
 
-      // 1단계: 브라우저로 비디오 정보 추출 (쿠키 생성)
-      console.log('🎬 1단계: 브라우저로 쿠키 생성');
-      const SmartDownloader = require('../services/smartDownloader');
-      await SmartDownloader.extractVideoInfo(url);
-
-      // 2단계: 생성된 쿠키로 yt-dlp 다운로드
-      console.log('🎬 2단계: 쿠키 기반 yt-dlp 다운로드');
+      // 기존 쿠키 파일로 직접 다운로드 시도
+      console.log('🎬 기존 쿠키 파일로 다운로드 시작');
       const result = await downloadManager.downloadVideo(downloadOptions);
       
       res.json({
