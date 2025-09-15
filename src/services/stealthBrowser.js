@@ -259,7 +259,7 @@ class StealthBrowser {
     // YouTube 메인 페이지 접속
     await page.goto('https://www.youtube.com', {
       waitUntil: 'networkidle',
-      timeout: 30000
+      timeout: 60000
     });
 
     // 페이지 로드 후 자연스러운 대기
