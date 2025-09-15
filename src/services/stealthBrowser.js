@@ -412,66 +412,97 @@ class StealthBrowser {
     }
   }
 
-  // 동일 세션에서 다운로드까지 처리
+  // 브라우저에서 직접 다운로드 처리
   async downloadVideoInSameSession(page, options) {
-    console.log('🎬 동일 세션에서 다운로드 처리 시작...');
+    console.log('🎬 브라우저에서 직접 다운로드 처리 시작...');
 
     try {
-      // 다운로드 URL 추출
+      // YouTube 다운로드 스트림 URL 추출 (yt-dlp 방식)
       const downloadData = await page.evaluate((opts) => {
-        if (window.ytInitialPlayerResponse && window.ytInitialPlayerResponse.streamingData) {
-          const streamingData = window.ytInitialPlayerResponse.streamingData;
-          let targetFormat = null;
+        // adaptiveFormats와 formats 모두 확인
+        const streamingData = window.ytInitialPlayerResponse?.streamingData;
+        if (!streamingData) return null;
 
-          // 요청된 품질에 맞는 포맷 찾기
-          if (streamingData.formats) {
-            targetFormat = streamingData.formats.find(format =>
-              format.qualityLabel?.includes(opts.quality.replace('p', '')) &&
-              format.mimeType?.includes(opts.format)
-            );
-          }
+        const allFormats = [
+          ...(streamingData.formats || []),
+          ...(streamingData.adaptiveFormats || [])
+        ];
 
-          if (targetFormat && targetFormat.url) {
-            return {
-              url: targetFormat.url,
-              filesize: targetFormat.contentLength || 0,
-              quality: targetFormat.qualityLabel || opts.quality
-            };
-          }
+        // 요청된 품질과 포맷에 맞는 스트림 찾기
+        let targetFormat = null;
+        const qualityNum = opts.quality.replace('p', '');
+
+        // 1차: 정확한 매치 시도
+        targetFormat = allFormats.find(format =>
+          format.qualityLabel?.includes(qualityNum) &&
+          format.mimeType?.includes(opts.format) &&
+          format.url
+        );
+
+        // 2차: 비슷한 품질로 매치 시도
+        if (!targetFormat) {
+          targetFormat = allFormats.find(format =>
+            format.mimeType?.includes(opts.format) &&
+            format.url
+          );
+        }
+
+        if (targetFormat && targetFormat.url) {
+          return {
+            url: targetFormat.url,
+            filesize: targetFormat.contentLength || 0,
+            quality: targetFormat.qualityLabel || opts.quality,
+            mimeType: targetFormat.mimeType
+          };
         }
         return null;
       }, options);
 
       if (downloadData && downloadData.url) {
-        console.log('🎯 다운로드 URL 추출 성공');
+        console.log('🎯 다운로드 스트림 URL 추출 성공');
+        console.log('🎬 품질:', downloadData.quality);
+        console.log('🎬 타입:', downloadData.mimeType);
 
-        // 동일 세션의 쿠키 사용하여 다운로드
-        const response = await page.context().request.get(downloadData.url);
-        const buffer = await response.body();
+        // 브라우저 컨텍스트에서 다운로드 (동일한 쿠키/세션 사용)
+        const response = await page.context().request.get(downloadData.url, {
+          timeout: 120000 // 2분 타임아웃
+        });
 
-        // 파일 저장
-        const fs = require('fs');
-        const path = require('path');
-        const timestamp = Date.now();
-        const filename = `download_${timestamp}_${options.quality}.${options.format}`;
-        const filePath = path.join('/tmp/mediadownloader', filename);
+        if (response.ok()) {
+          const buffer = await response.body();
 
-        fs.writeFileSync(filePath, buffer);
+          // 파일 저장
+          const fs = require('fs');
+          const path = require('path');
+          const timestamp = Date.now();
+          const filename = `download_${timestamp}_${options.quality}.${options.format}`;
+          const filePath = path.join('/tmp/mediadownloader', filename);
 
-        console.log(`✅ 동일 세션 다운로드 완료: ${filename}`);
-        return {
-          success: true,
-          filePath: filePath,
-          filename: filename,
-          fileSize: buffer.length,
-          method: 'same-session-download'
-        };
+          // 디렉토리 확인
+          if (!fs.existsSync('/tmp/mediadownloader')) {
+            fs.mkdirSync('/tmp/mediadownloader', { recursive: true });
+          }
+
+          fs.writeFileSync(filePath, buffer);
+
+          console.log(`✅ 브라우저 다운로드 완료: ${filename} (${buffer.length} bytes)`);
+          return {
+            success: true,
+            downloadId: timestamp.toString(),
+            filePath: filePath,
+            filename: filename,
+            fileSize: buffer.length,
+            method: 'browser-direct-download'
+          };
+        } else {
+          throw new Error(`HTTP ${response.status()}: ${response.statusText()}`);
+        }
       }
 
-      throw new Error('다운로드 URL 추출 실패');
+      throw new Error('다운로드 스트림 URL을 찾을 수 없습니다');
 
     } catch (error) {
-      console.error('❌ 동일 세션 다운로드 실패:', error.message);
+      console.error('❌ 브라우저 직접 다운로드 실패:', error.message);
       throw error;
     }
   }

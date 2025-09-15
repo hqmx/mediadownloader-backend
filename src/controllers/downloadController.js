@@ -86,9 +86,10 @@ class DownloadController {
         });
       }
 
-      // 기존 쿠키 파일로 직접 다운로드 시도
-      console.log('🎬 기존 쿠키 파일로 다운로드 시작');
-      const result = await downloadManager.downloadVideo(downloadOptions);
+      // 브라우저 직접 다운로드 방식 사용
+      console.log('🎬 브라우저 직접 다운로드 시작');
+      const SmartDownloader = require('../services/smartDownloader');
+      const result = await SmartDownloader.downloadVideo(url, downloadOptions);
       
       res.json({
         success: true,
