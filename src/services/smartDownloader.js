@@ -97,17 +97,64 @@ class SmartDownloader {
   }
 
 
-  async tryBrowserStealth(url) {
+  async tryBrowserStealth(url, downloadOptions = null) {
     console.log('🌐 Playwright + 쿠키 기반 인증 사용');
 
-    const result = await this.stealthBrowser.extractVideoInfo(url);
+    if (downloadOptions) {
+      // 다운로드 요청 시: 동일 세션에서 정보 추출 + 다운로드
+      console.log('🎬 동일 세션 다운로드 모드');
+      const result = await this.stealthBrowser.extractAndDownload(url, downloadOptions);
+      if (!result || !result.success) {
+        throw new Error('브라우저에서 다운로드에 실패했습니다');
+      }
+      return result;
+    } else {
+      // 정보 추출만
+      const result = await this.stealthBrowser.extractVideoInfo(url);
+      if (!result || !result.videoId) {
+        throw new Error('브라우저에서 유효한 비디오 정보를 가져오지 못했습니다');
+      }
+      console.log(`✅ 비디오 정보 추출 성공: ${result.title}`);
+      return result;
+    }
+  }
 
-    if (!result || !result.videoId) {
-      throw new Error('브라우저에서 유효한 비디오 정보를 가져오지 못했습니다');
+  // 동일 세션 다운로드 기능 추가
+  async downloadVideo(url, options) {
+    console.log('=== SmartDownloader 다운로드 시작 ===');
+    console.log('URL:', url);
+    console.log('옵션:', options);
+
+    const errors = [];
+
+    for (const method of this.methods) {
+      try {
+        console.log(`\n--- 방법 ${method.name} 다운로드 시도 중 ---`);
+
+        const startTime = Date.now();
+        const result = await method.handler(url, options);
+        const duration = Date.now() - startTime;
+
+        if (result && result.success) {
+          console.log(`✅ 다운로드 성공! (${duration}ms)`);
+          console.log(`방법: ${method.name}`);
+          console.log(`파일: ${result.filename}`);
+          console.log(`크기: ${result.fileSize} bytes`);
+
+          return result;
+        }
+
+        this.attemptCount++;
+      } catch (error) {
+        this.attemptCount++;
+        errors.push({ method: method.name, error: error.message });
+        console.error(`❌ ${method.name} 다운로드 실패:`, error.message);
+      }
     }
 
-    console.log(`✅ 비디오 정보 추출 성공: ${result.title}`);
-    return result;
+    // 모든 방법 실패
+    console.error('=== 모든 다운로드 방법 실패 ===');
+    throw new Error(`모든 다운로드 방법 실패: ${errors.map(e => e.method).join(', ')}`);
   }
 
   async randomDelay() {

@@ -17,6 +17,45 @@ class StealthBrowser {
     this.sessionId = Date.now().toString();
   }
 
+  // 동일 세션에서 정보 추출 + 다운로드
+  async extractAndDownload(url, options) {
+    console.log('🎭 동일 세션 브라우저 시작 (정보 추출 + 다운로드)...');
+    console.log('🍪 쿠키 기반 접근 - 프록시 없이 빠른 속도');
+
+    const browser = await this.launchStealthBrowser(null);
+    const context = await this.createStealthContext(browser);
+
+    try {
+      // 1. 비디오 페이지 접속
+      const page = await context.newPage();
+      await this.loadCookies(page);
+
+      console.log('🎯 비디오 페이지로 직접 이동...');
+      await page.goto(url, {
+        waitUntil: 'domcontentloaded',
+        timeout: 60000
+      });
+
+      // 2. 사람처럼 행동 (간단하게)
+      await page.waitForTimeout(3000);
+      await this.humanBehavior.smoothScroll(page, 200);
+
+      // 3. 동일 세션에서 다운로드 처리
+      const downloadResult = await this.downloadVideoInSameSession(page, options);
+
+      // 4. 쿠키 저장
+      await this.saveCookies(context);
+
+      return downloadResult;
+
+    } catch (error) {
+      console.error('❌ 동일 세션 처리 실패:', error.message);
+      throw error;
+    } finally {
+      await browser.close();
+    }
+  }
+
   async extractVideoInfo(url) {
     console.log('🎭 브라우저 시작...');
 
@@ -370,6 +409,70 @@ class StealthBrowser {
       }
     } catch (error) {
       // 무시
+    }
+  }
+
+  // 동일 세션에서 다운로드까지 처리
+  async downloadVideoInSameSession(page, options) {
+    console.log('🎬 동일 세션에서 다운로드 처리 시작...');
+
+    try {
+      // 다운로드 URL 추출
+      const downloadData = await page.evaluate((opts) => {
+        if (window.ytInitialPlayerResponse && window.ytInitialPlayerResponse.streamingData) {
+          const streamingData = window.ytInitialPlayerResponse.streamingData;
+          let targetFormat = null;
+
+          // 요청된 품질에 맞는 포맷 찾기
+          if (streamingData.formats) {
+            targetFormat = streamingData.formats.find(format =>
+              format.qualityLabel?.includes(opts.quality.replace('p', '')) &&
+              format.mimeType?.includes(opts.format)
+            );
+          }
+
+          if (targetFormat && targetFormat.url) {
+            return {
+              url: targetFormat.url,
+              filesize: targetFormat.contentLength || 0,
+              quality: targetFormat.qualityLabel || opts.quality
+            };
+          }
+        }
+        return null;
+      }, options);
+
+      if (downloadData && downloadData.url) {
+        console.log('🎯 다운로드 URL 추출 성공');
+
+        // 동일 세션의 쿠키 사용하여 다운로드
+        const response = await page.context().request.get(downloadData.url);
+        const buffer = await response.body();
+
+        // 파일 저장
+        const fs = require('fs');
+        const path = require('path');
+        const timestamp = Date.now();
+        const filename = `download_${timestamp}_${options.quality}.${options.format}`;
+        const filePath = path.join('/tmp/mediadownloader', filename);
+
+        fs.writeFileSync(filePath, buffer);
+
+        console.log(`✅ 동일 세션 다운로드 완료: ${filename}`);
+        return {
+          success: true,
+          filePath: filePath,
+          filename: filename,
+          fileSize: buffer.length,
+          method: 'same-session-download'
+        };
+      }
+
+      throw new Error('다운로드 URL 추출 실패');
+
+    } catch (error) {
+      console.error('❌ 동일 세션 다운로드 실패:', error.message);
+      throw error;
     }
   }
 

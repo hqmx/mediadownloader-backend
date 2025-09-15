@@ -86,13 +86,18 @@ class DownloadController {
         });
       }
 
-      const result = await downloadManager.downloadVideo(downloadOptions);
+      // 동일 세션 다운로드 사용
+      console.log('🎬 동일 세션 다운로드 모드 사용');
+      const smartDownloader = require('../services/smartDownloader');
+      const result = await smartDownloader.downloadVideo(url, downloadOptions);
       
       res.json({
         success: true,
         downloadId: result.downloadId || Date.now().toString(),
         filename: result.filename,
-        message: 'Download started successfully'
+        fileSize: result.fileSize,
+        method: result.method,
+        message: 'Download completed successfully'
       });
     } catch (error) {
       console.error('Error starting download:', error);
